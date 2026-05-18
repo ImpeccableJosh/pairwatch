@@ -105,7 +105,7 @@ def revert_loop(events: list[dict], similarity_threshold: float = 0.7) -> list[d
 MISTAKE_PATTERNS = [
     ("missing_null_check", re.compile(r"\bif\s+\w+\s+is\s+None\b")),
     ("bare_try", re.compile(r"^\s*try:\s*$", re.MULTILINE)),
-    ("bare_except", re.compile(r"^\s*except\s*:")),
+    ("bare_except", re.compile(r"^\s*except\s*:", re.MULTILINE)),
     ("print_debug", re.compile(r"^\s*print\(.*\)\s*$", re.MULTILINE)),
     ("todo_comment", re.compile(r"#\s*TODO", re.IGNORECASE)),
     ("await_missing", re.compile(r"\b(\w+\.(get|post|fetch|query)\([^)]*\))(?!\s*await)")),

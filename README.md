@@ -2,18 +2,22 @@
 
 A background agent that watches your local code editing activity, detects friction patterns (churn, stalls, revert loops, repeated mistakes), and surfaces short, useful observations — only when it has high confidence the interruption is worth it.
 
-This repo is the **MVP**: a Python CLI that watches a directory for file saves and calls Claude every 60 seconds with a window of recent edits. The longer-term target is a VS Code extension; see `pairwatch_prd.md`.
+This repo is the **MVP**: a Python CLI that watches a directory for file saves and calls an LLM every 60 seconds with a window of recent edits. The longer-term target is a VS Code extension; see `pairwatch_prd.md`.
 
 ## Install
 
-Requires Python 3.10+ and an [Anthropic API key](https://console.anthropic.com/).
+Requires Python 3.10+ and an API key for at least one of:
+
+- [Anthropic / Claude](https://console.anthropic.com/) (default)
+- [Google Gemini](https://aistudio.google.com/apikey)
+- [Cloudflare Workers AI](https://dash.cloudflare.com/profile/api-tokens) (needs both an API token with "Workers AI" permission and your account ID)
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# edit .env and paste your key
+# edit .env: set PAIRWATCH_PROVIDER and fill in keys for that provider
 ```
 
 ## Run
@@ -30,8 +34,29 @@ Flags:
 | `--interval` | `60` | Seconds between agent ticks. Lower for testing. |
 | `--window-minutes` | `15` | Sliding event window fed to the agent. |
 | `--quiet` | off | Suppress terminal output; interventions still logged to `.pairwatch/interventions.jsonl`. |
+| `--provider` | from env | Override `PAIRWATCH_PROVIDER`. One of `anthropic`, `gemini`, `cloudflare`. |
 
 The watcher ignores `.git`, `.pairwatch`, `node_modules`, `__pycache__`, virtualenvs, build dirs, and common binary file types.
+
+## Swapping providers
+
+PairWatch ships with three swappable LLM backends. Pick one via `PAIRWATCH_PROVIDER` in `.env` or per-run with `--provider`.
+
+| Provider | Default model | Env vars required |
+|---|---|---|
+| `anthropic` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
+| `gemini` | `gemini-2.5-flash` | `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) |
+| `cloudflare` | `@cf/meta/llama-3.3-70b-instruct-fp8-fast` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` |
+
+Override the model for any provider via `PAIRWATCH_<PROVIDER>_MODEL` (e.g. `PAIRWATCH_GEMINI_MODEL=gemini-2.5-pro`). All three providers return the same decision schema; the policy gating (confidence threshold, cooldowns, rate limit) is identical regardless of backend.
+
+```bash
+# one-off run against Gemini
+python -m pairwatch.main --target-dir . --provider gemini
+
+# one-off run against Cloudflare's Llama 3.3
+python -m pairwatch.main --target-dir . --provider cloudflare
+```
 
 ## What it does
 

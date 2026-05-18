@@ -15,6 +15,7 @@ from pairwatch.agent import Agent
 from pairwatch.detector import compute_signals
 from pairwatch.log import EventLog
 from pairwatch.notify import render, render_silent
+from pairwatch.providers import available_provider_names
 from pairwatch.watcher import SaveEvent, start_watcher
 
 
@@ -68,6 +69,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--interval", type=int, default=60, help="Seconds between agent ticks (default 60).")
     parser.add_argument("--window-minutes", type=int, default=15, help="Sliding event window fed to the agent (default 15).")
     parser.add_argument("--quiet", action="store_true", help="Suppress terminal output (interventions still logged).")
+    parser.add_argument(
+        "--provider",
+        choices=available_provider_names() + ["claude", "google", "cf"],
+        default=None,
+        help="LLM backend to use. Overrides PAIRWATCH_PROVIDER env var. Default: anthropic.",
+    )
     args = parser.parse_args(argv)
 
     target_dir = Path(args.target_dir).resolve()
@@ -79,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     log = EventLog(target_dir)
-    agent = Agent(target_dir)
+    agent = Agent(target_dir, provider_name=args.provider)
 
     event_q: "queue.Queue[SaveEvent]" = queue.Queue()
     stop = threading.Event()
@@ -100,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
 
     mode = "quiet" if args.quiet else "loud"
     print(f"[pairwatch] watching {target_dir}")
-    print(f"[pairwatch] tick={args.interval}s  window={args.window_minutes}m  mode={mode}")
+    print(f"[pairwatch] tick={args.interval}s  window={args.window_minutes}m  mode={mode}  provider={agent.provider.name}")
     print("[pairwatch] Ctrl-C to stop.")
 
     next_tick = time.monotonic() + args.interval
